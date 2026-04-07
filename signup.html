@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign up — Post & Parcel</title>
+    <meta
+      name="description"
+      content="Request paper mail delivery to your address."
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="layout-footer">
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="logo" href="index.html">Post & Parcel</a>
+        <nav aria-label="Primary">
+          <a href="how-it-works.html">How it works</a>
+          <a href="pricing.html">Pricing</a>
+          <a href="signup.html" aria-current="page">Sign up</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <article class="prose">
+        <h1>Sign up for mail</h1>
+        <p class="lead">
+          Tell us who you are, where to send pieces, and which plan you want.
+          This is a static demo—submitting goes to a thank-you page only.
+        </p>
+        <form
+          class="form-card"
+          action="thank-you.html"
+          method="get"
+          aria-describedby="form-note"
+        >
+          <p id="form-note" class="form-hint form-intro">
+            Required fields are marked.
+          </p>
+          <div class="form-group">
+            <label for="full-name">Full name <span aria-hidden="true">*</span></label>
+            <input
+              id="full-name"
+              name="name"
+              type="text"
+              autocomplete="name"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="email">Email <span aria-hidden="true">*</span></label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            />
+            <p class="form-hint">For confirmations and shipping notices only.</p>
+          </div>
+          <div class="form-group">
+            <label for="plan">Plan <span aria-hidden="true">*</span></label>
+            <select id="plan" name="plan" required>
+              <option value="">Select a plan</option>
+              <option value="postcard-drift">Postcard drift — $8/mo</option>
+              <option value="letter-line">Letter & line — $18/mo</option>
+              <option value="parcel-post">Parcel & post — $42/qtr</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="address">Mailing address <span aria-hidden="true">*</span></label>
+            <textarea
+              id="address"
+              name="address"
+              autocomplete="street-address"
+              required
+              placeholder="Street, unit, city, region, postal code"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label for="notes">Notes (optional)</label>
+            <textarea
+              id="notes"
+              name="notes"
+              placeholder="Allergies to certain papers, gift recipient, etc."
+            ></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            Request subscription
+          </button>
+        </form>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <p>Post & Parcel — demo static site for CI/CD pipelines.</p>
+    </footer>
+  </body>
+</html>
