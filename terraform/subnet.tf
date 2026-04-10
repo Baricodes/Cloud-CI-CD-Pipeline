@@ -14,6 +14,17 @@ resource "aws_subnet" "public_subnet_az1" {
   }
 }
 
+resource "aws_subnet" "public_subnet_az2" {
+  vpc_id                  = aws_vpc.portfolio_cicd_vpc.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = local.az2
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "public-subnet-az2"
+  }
+}
+
 resource "aws_subnet" "private_app_subnet_az1" {
   vpc_id            = aws_vpc.portfolio_cicd_vpc.id
   cidr_block        = "10.0.11.0/24"

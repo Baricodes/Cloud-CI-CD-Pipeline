@@ -17,6 +17,11 @@ resource "aws_route_table_association" "public_subnet_az1" {
   route_table_id = aws_route_table.portfolio_cicd_public_rt.id
 }
 
+resource "aws_route_table_association" "public_subnet_az2" {
+  subnet_id      = aws_subnet.public_subnet_az2.id
+  route_table_id = aws_route_table.portfolio_cicd_public_rt.id
+}
+
 resource "aws_route_table" "private_app_subnet_az1_rt" {
   vpc_id = aws_vpc.portfolio_cicd_vpc.id
 
