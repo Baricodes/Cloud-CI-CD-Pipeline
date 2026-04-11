@@ -1,3 +1,6 @@
+# Internet-facing ALB across both public subnets. Target group uses target
+# type "ip" (required for Fargate awsvpc). Listener is HTTP:80 only.
+#
 # -----------------------------------------------------------------------------
 # Application Load Balancer
 # -----------------------------------------------------------------------------

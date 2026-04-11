@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# Deletes all images in the ECR repository, then runs terraform destroy from ./terraform.
-# Emptying the repo avoids ECR delete failures when Terraform destroys aws_ecr_repository.
 #
-# Usage: ./scripts/clear-ecr-and-terraform-destroy.sh [terraform destroy args...]
-# Example: ./scripts/clear-ecr-and-terraform-destroy.sh -auto-approve
+# Teardown helper: remove every image from the ECR repository, then terraform destroy.
+# AWS often blocks deleting a non-empty ECR repo; emptying it first avoids that error.
 #
-# Environment: ECR_REPOSITORY_NAME overrides the default repository name (portfolio-app).
+# Prerequisites: AWS CLI configured; run from repo root or via path as shown.
+#
+# Usage:
+#   ./scripts/clear-ecr-and-terraform-destroy.sh [terraform destroy args...]
+#
+# Example:
+#   ./scripts/clear-ecr-and-terraform-destroy.sh -auto-approve
+#
+# Environment:
+#   ECR_REPOSITORY_NAME  Repository name (default: portfolio-app).
 # Region is fixed to us-east-1.
 
 set -euo pipefail
@@ -18,6 +25,7 @@ ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-portfolio-app}"
 
 echo "Removing all images from ${ECR_REPOSITORY_NAME} (${REGION})..."
 
+# Delete in batches of up to 100 (ECR batch-delete-image limit). Loop until none remain.
 while true; do
   DIGESTS=()
   while IFS= read -r line; do

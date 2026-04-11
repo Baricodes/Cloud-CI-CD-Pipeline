@@ -1,3 +1,8 @@
+# CodePipeline: GitHub source via CodeStar Connections, CodeBuild, ECS deploy.
+# Also defines the S3 artifact bucket and encryption/versioning. Set variables
+# (e.g. in terraform.tfvars): codestar_connection_arn, github_repository_id;
+# optional github_branch (default main).
+#
 # -----------------------------------------------------------------------------
 # Data sources
 # -----------------------------------------------------------------------------
@@ -22,6 +27,8 @@ variable "github_branch" {
   default     = "main"
 }
 
+# Pipeline stage input/output artifacts (source zip, build output with imagedefinitions.json).
+#
 # -----------------------------------------------------------------------------
 # Artifact store
 # -----------------------------------------------------------------------------

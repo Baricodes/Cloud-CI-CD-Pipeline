@@ -1,3 +1,9 @@
+# IAM for ECS tasks (execution role), CodeBuild, and CodePipeline. CodeBuild
+# policy includes S3 artifact access, ECR push/pull, default CodeBuild log
+# groups under /aws/codebuild/*, and sts:GetCallerIdentity for the buildspec.
+# CodePipeline can use the CodeStar connection, start CodeBuild, read/write
+# artifacts, deploy to ECS, and pass the task execution role.
+#
 # -----------------------------------------------------------------------------
 # ECS task execution role
 # -----------------------------------------------------------------------------

@@ -1,3 +1,6 @@
+# ALB: HTTP (and HTTPS ingress for a future ACM listener; only HTTP is wired
+# in alb.tf today). App tier: accepts HTTP only from the ALB security group.
+#
 # -----------------------------------------------------------------------------
 # Security group: ALB
 # -----------------------------------------------------------------------------

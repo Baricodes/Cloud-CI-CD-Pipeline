@@ -1,3 +1,6 @@
+# Public subnets: default route to the internet gateway. Private app subnet:
+# default route to the NAT gateway (ECS pulls images, etc.).
+#
 # -----------------------------------------------------------------------------
 # Public route table & associations
 # -----------------------------------------------------------------------------

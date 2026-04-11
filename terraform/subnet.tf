@@ -1,3 +1,7 @@
+# Two public subnets (different AZs) for the internet-facing ALB. One private
+# subnet for ECS tasks (Fargate) with egress through a single NAT gateway.
+# AZs are fixed to us-east-1b / us-east-1c for this project.
+#
 # -----------------------------------------------------------------------------
 # Locals (availability zones)
 # -----------------------------------------------------------------------------

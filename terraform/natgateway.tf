@@ -1,3 +1,6 @@
+# Single NAT in the first public subnet. Private ECS tasks have no public IP
+# and use this for outbound traffic (e.g. ECR, package installs in tasks).
+#
 # -----------------------------------------------------------------------------
 # Elastic IP (NAT)
 # -----------------------------------------------------------------------------

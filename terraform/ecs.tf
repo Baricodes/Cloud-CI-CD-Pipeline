@@ -1,3 +1,8 @@
+# ECR repository, Fargate cluster/service, task definition, and ECS CloudWatch
+# log group. Container name "app" must match buildspec imagedefinitions.json
+# and the CodePipeline ECS deploy action. Pipeline image updates: Terraform
+# ignores task_definition on the service so applies do not revert deploys.
+#
 # -----------------------------------------------------------------------------
 # ECR
 # -----------------------------------------------------------------------------
@@ -13,6 +18,8 @@ resource "aws_ecs_cluster" "portfolio_cicd_cluster" {
   name = "portfolio-cicd-cluster"
 }
 
+# Log group for the task awslogs driver (see container logConfiguration).
+#
 # -----------------------------------------------------------------------------
 # CloudWatch Logs (ECS)
 # -----------------------------------------------------------------------------
