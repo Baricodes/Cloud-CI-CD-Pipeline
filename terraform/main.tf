@@ -1,20 +1,14 @@
 terraform {
+  required_version = ">= 1.3.0"
+
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
     }
   }
 }
 
 provider "aws" {
   region = "us-east-1"
-}
-
-resource "aws_ecr_repository" "portfolio_app" {
-  name                 = "portfolio-app"
-  image_tag_mutability = "MUTABLE"
-}
-
-resource "aws_ecs_cluster" "portfolio_cicd_cluster" {
-  name = "portfolio-cicd-cluster"
 }
