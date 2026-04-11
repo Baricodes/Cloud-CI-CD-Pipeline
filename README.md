@@ -4,6 +4,8 @@ This project demonstrates an end-to-end CI/CD pipeline on AWS for deploying a co
 
 The goal of this project was to keep the architecture simple and focused on demonstrating the CI/CD workflow rather than building out a full highly available network platform. Because of that, I intentionally did **not** implement a full multi-AZ highly available application architecture for this version of the project.
 
+For its scope, the project is **complete**: Terraform defines the full stack in this repository—from VPC, subnets, routing, and security groups through ECR, ECS, the ALB, CodePipeline, CodeBuild, the S3 artifact bucket for the pipeline, and the IAM needed for the pipeline and runtime.
+
 ---
 
 ## Project Overview
@@ -31,35 +33,38 @@ This project helped me practice core cloud engineering concepts around:
 
 **Workflow**
 
-GitHub → CodePipeline → CodeBuild → Amazon ECR → Amazon ECS → Application Load Balancer
+GitHub → CodePipeline → CodeBuild → Amazon ECR → Amazon ECS (Fargate) → Application Load Balancer
 
 ### Architecture notes
 
-- The application is deployed as a containerized service on **Amazon ECS**
-- **CodePipeline** orchestrates the source, build, and deploy stages
+- The application is deployed as a containerized service on **Amazon ECS** using **AWS Fargate** (no EC2 capacity to manage)
+- **CodePipeline** orchestrates the source, build, and deploy stages and stores stage artifacts in **Amazon S3**
+- Source code is supplied by **GitHub**, using a **CodeStar Connections** source action (you create and authorize the connection in the AWS console, then pass its ARN into Terraform)
 - **CodeBuild** builds the Docker image and pushes it to **Amazon ECR**
-- The ECS service pulls the new image and updates the running task
-- Traffic is routed through an **Application Load Balancer**
-- The VPC layout was intentionally kept simpler than a full production-grade HA setup so the project could stay focused on the CI/CD demonstration
+- The pipeline’s deploy stage updates the ECS service with the new image from `imagedefinitions.json` produced by CodeBuild
+- Traffic is routed through an **Application Load Balancer** (HTTP listener on port 80)
+- The VPC uses two public subnets across two AZs for the ALB, but a **single private application subnet in one AZ** for ECS tasks and one NAT gateway—simpler than a full production-grade HA layout so the project stays focused on the CI/CD demonstration
 
 ---
 
 ## AWS Services Used
 
 - **Amazon VPC**
-- **Amazon ECS**
+- **Amazon ECS** (Fargate)
 - **Amazon ECR**
 - **AWS CodePipeline**
 - **AWS CodeBuild**
+- **Amazon S3** (pipeline artifacts)
+- **AWS CodeStar Connections** (GitHub source for CodePipeline)
 - **Elastic Load Balancing (ALB)**
 - **IAM**
-- **CloudWatch**
+- **Amazon CloudWatch Logs** (CodeBuild and ECS task logs)
 
 ---
 
 ## Key Features
 
-- GitHub-based source integration
+- GitHub-based source integration via CodeStar Connections
 - Automated build and deploy pipeline
 - Docker image storage in Amazon ECR
 - ECS service deployment automation
@@ -72,7 +77,7 @@ GitHub → CodePipeline → CodeBuild → Amazon ECR → Amazon ECS → Applicat
 ## CI/CD Flow
 
 ### 1. Source
-CodePipeline pulls source code changes from GitHub.
+CodePipeline pulls source code changes from GitHub through a CodeStar Connections source action.
 
 ### 2. Build
 CodeBuild builds the application container image and pushes it to Amazon ECR.
@@ -195,7 +200,6 @@ Some improvements I would make next:
 - add a staging environment
 - add test stages before deployment
 - add blue/green or canary deployment strategies
-- extend Infrastructure as Code to cover the pipeline (CodePipeline/CodeBuild), ECS service and task definition, load balancer, and any remaining console-managed IAM—this repo already uses Terraform for the VPC, subnets, routing, NAT, security groups, ECR repository, and ECS cluster
 
 ---
 
@@ -205,8 +209,9 @@ Some improvements I would make next:
 .
 ├── website/          # static site (HTML/CSS) copied into the container image
 ├── images/           # README screenshots
-├── terraform/        # VPC, subnets, routing, NAT, security groups, ECR, ECS cluster
+├── scripts/          # optional local helpers (e.g. terraform apply + push image to ECR)
+├── terraform/        # full IaC: VPC, networking, security groups, ECR, ECS, ALB, CodePipeline, CodeBuild, IAM, S3 artifact bucket
 ├── Dockerfile
-├── buildspec.yml     # CodeBuild: build/push to ECR, emit imagedefinitions.json
+├── buildspec.yml     # CodeBuild: build/push to ECR, write imagedefinitions.json for the ECS deploy stage
 └── README.md
 ```
