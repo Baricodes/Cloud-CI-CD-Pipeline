@@ -28,6 +28,10 @@ Desktop.ini
 
 # Terraform
 .terraform/
+# Local variable values (never commit real ARNs or account-specific settings)
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
 *.tfstate
 *.tfstate.*
 crash.log

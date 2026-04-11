@@ -1,7 +1,10 @@
+# -----------------------------------------------------------------------------
+# Data sources
+# -----------------------------------------------------------------------------
 data "aws_caller_identity" "current" {}
 
 # -----------------------------------------------------------------------------
-# Source: GitHub via CodeStar Connections (complete connection in AWS Console first)
+# Variables: GitHub via CodeStar Connections (complete connection in AWS Console first)
 # -----------------------------------------------------------------------------
 variable "codestar_connection_arn" {
   description = "ARN of the CodeStar Connections connection authorized for your Git provider."

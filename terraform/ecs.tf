@@ -1,16 +1,28 @@
+# -----------------------------------------------------------------------------
+# ECR
+# -----------------------------------------------------------------------------
 resource "aws_ecr_repository" "portfolio_app" {
   name                 = "portfolio-app"
   image_tag_mutability = "MUTABLE"
 }
 
+# -----------------------------------------------------------------------------
+# ECS cluster
+# -----------------------------------------------------------------------------
 resource "aws_ecs_cluster" "portfolio_cicd_cluster" {
   name = "portfolio-cicd-cluster"
 }
 
+# -----------------------------------------------------------------------------
+# CloudWatch Logs (ECS)
+# -----------------------------------------------------------------------------
 resource "aws_cloudwatch_log_group" "portfolio_app_logs" {
   name = "/ecs/portfolio-app"
 }
 
+# -----------------------------------------------------------------------------
+# Task definition
+# -----------------------------------------------------------------------------
 resource "aws_ecs_task_definition" "portfolio_app" {
   family                   = "portfolio-app"
   requires_compatibilities = ["FARGATE"]
@@ -42,6 +54,9 @@ resource "aws_ecs_task_definition" "portfolio_app" {
   ])
 }
 
+# -----------------------------------------------------------------------------
+# ECS service
+# -----------------------------------------------------------------------------
 resource "aws_ecs_service" "portfolio_app" {
   name            = "portfolio-app"
   cluster         = aws_ecs_cluster.portfolio_cicd_cluster.id

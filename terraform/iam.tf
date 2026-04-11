@@ -1,4 +1,6 @@
-# ECS task execution
+# -----------------------------------------------------------------------------
+# ECS task execution role
+# -----------------------------------------------------------------------------
 data "aws_iam_policy_document" "ecs_task_execution_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -19,7 +21,9 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# -----------------------------------------------------------------------------
 # CodeBuild (pipeline build stage)
+# -----------------------------------------------------------------------------
 data "aws_iam_policy_document" "codebuild_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -98,7 +102,9 @@ resource "aws_iam_role_policy" "codebuild" {
   policy = data.aws_iam_policy_document.codebuild.json
 }
 
+# -----------------------------------------------------------------------------
 # CodePipeline
+# -----------------------------------------------------------------------------
 data "aws_iam_policy_document" "codepipeline_assume" {
   statement {
     actions = ["sts:AssumeRole"]

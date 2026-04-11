@@ -1,3 +1,6 @@
+# -----------------------------------------------------------------------------
+# Application Load Balancer
+# -----------------------------------------------------------------------------
 resource "aws_lb" "portfolio_cicd" {
   name               = "portfolio-cicd-alb"
   internal           = false
@@ -10,6 +13,9 @@ resource "aws_lb" "portfolio_cicd" {
   }
 }
 
+# -----------------------------------------------------------------------------
+# Target group
+# -----------------------------------------------------------------------------
 resource "aws_lb_target_group" "portfolio_app" {
   name        = "portfolio-app-tg"
   port        = 80
@@ -34,6 +40,9 @@ resource "aws_lb_target_group" "portfolio_app" {
   }
 }
 
+# -----------------------------------------------------------------------------
+# Listener (HTTP to target group)
+# -----------------------------------------------------------------------------
 resource "aws_lb_listener" "portfolio_cicd_http" {
   load_balancer_arn = aws_lb.portfolio_cicd.arn
   port              = 80

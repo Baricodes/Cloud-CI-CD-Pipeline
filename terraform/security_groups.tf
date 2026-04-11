@@ -1,3 +1,6 @@
+# -----------------------------------------------------------------------------
+# Security group: ALB
+# -----------------------------------------------------------------------------
 resource "aws_security_group" "portfolio_cicd_alb_sg" {
   name        = "portfolio-cicd-alb-sg"
   description = "Security group for application load balancer"
@@ -31,6 +34,9 @@ resource "aws_security_group" "portfolio_cicd_alb_sg" {
   }
 }
 
+# -----------------------------------------------------------------------------
+# Security group: application tier (ECS)
+# -----------------------------------------------------------------------------
 resource "aws_security_group" "portfolio_cicd_app_sg" {
   name        = "portfolio-cicd-app-sg"
   description = "Security group for application tier"
