@@ -62,4 +62,8 @@ resource "aws_ecs_service" "portfolio_app" {
   }
 
   depends_on = [aws_lb_listener.portfolio_cicd_http]
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
