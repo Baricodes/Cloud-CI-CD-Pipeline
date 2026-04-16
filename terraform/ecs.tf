@@ -71,12 +71,14 @@ resource "aws_ecs_service" "portfolio_app" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # --- Register tasks with the ALB target group ---
   load_balancer {
     target_group_arn = aws_lb_target_group.portfolio_app.arn
     container_name   = "app"
     container_port   = 80
   }
 
+  # --- Tasks run in private subnets (egress via NAT) ---
   network_configuration {
     subnets          = [aws_subnet.private_app_subnet_az1.id]
     security_groups  = [aws_security_group.portfolio_cicd_app_sg.id]
@@ -85,6 +87,7 @@ resource "aws_ecs_service" "portfolio_app" {
 
   depends_on = [aws_lb_listener.portfolio_cicd_http]
 
+  # --- Pipeline updates task definition; Terraform does not revert deploys ---
   lifecycle {
     ignore_changes = [task_definition]
   }

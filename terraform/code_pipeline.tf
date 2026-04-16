@@ -30,8 +30,9 @@ variable "github_branch" {
 # Pipeline stage input/output artifacts (source zip, build output with imagedefinitions.json).
 #
 # -----------------------------------------------------------------------------
-# Artifact store
+# Artifact store (S3)
 # -----------------------------------------------------------------------------
+# --- Bucket ---
 resource "aws_s3_bucket" "pipeline_artifacts" {
   bucket = "${data.aws_caller_identity.current.account_id}-portfolio-cicd-pipeline-artifacts"
 
@@ -40,6 +41,7 @@ resource "aws_s3_bucket" "pipeline_artifacts" {
   }
 }
 
+# --- Bucket hardening (block public access) ---
 resource "aws_s3_bucket_public_access_block" "pipeline_artifacts" {
   bucket = aws_s3_bucket.pipeline_artifacts.id
 
@@ -49,6 +51,7 @@ resource "aws_s3_bucket_public_access_block" "pipeline_artifacts" {
   restrict_public_buckets = true
 }
 
+# --- Bucket encryption (SSE-S3) ---
 resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifacts" {
   bucket = aws_s3_bucket.pipeline_artifacts.id
 
@@ -59,6 +62,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifact
   }
 }
 
+# --- Bucket versioning ---
 resource "aws_s3_bucket_versioning" "pipeline_artifacts" {
   bucket = aws_s3_bucket.pipeline_artifacts.id
   versioning_configuration {
@@ -78,6 +82,7 @@ resource "aws_codepipeline" "portfolio_app" {
     type     = "S3"
   }
 
+  # --- Stage: Source (GitHub via CodeStar Connections) ---
   stage {
     name = "Source"
 
@@ -97,6 +102,7 @@ resource "aws_codepipeline" "portfolio_app" {
     }
   }
 
+  # --- Stage: Build (CodeBuild → ECR image + imagedefinitions.json) ---
   stage {
     name = "Build"
 
@@ -115,6 +121,7 @@ resource "aws_codepipeline" "portfolio_app" {
     }
   }
 
+  # --- Stage: Deploy (ECS service update from build artifacts) ---
   stage {
     name = "Deploy"
 
