@@ -31,12 +31,10 @@ Desktop.ini
 # Local variable values (never commit real ARNs or account-specific settings)
 *.tfvars
 *.tfvars.json
-!terraform.tfvars.example
 *.tfstate
 *.tfstate.*
 crash.log
 crash.*.log
-.terraform.lock.hcl
 override.tf
 override.tf.json
 *_override.tf

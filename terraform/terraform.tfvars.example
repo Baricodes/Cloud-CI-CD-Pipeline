@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars and fill in real values (terraform.tfvars is gitignored).
+#
+# Create and authorize a CodeStar Connections GitHub connection in the AWS Console
+# (Developer Tools → Settings → Connections), then paste its ARN below.
+
+codestar_connection_arn = "arn:aws:codestar-connections:us-east-1:123456789012:connection/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Repository as owner/name — must match the repo CodePipeline should pull from.
+github_repository_id = "myorg/Cloud-CI-CD-Pipeline"
+
+# Optional: branch to watch (defaults to main if omitted).
+# github_branch = "main"

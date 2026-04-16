@@ -2,9 +2,9 @@
 
 This project demonstrates an end-to-end CI/CD pipeline on AWS for deploying a containerized web application to Amazon ECS using GitHub, AWS CodePipeline, AWS CodeBuild, Amazon ECR, and an Application Load Balancer.
 
-The goal of this project was to keep the architecture simple and focused on demonstrating the CI/CD workflow rather than building out a full highly available network platform. Because of that, I intentionally did **not** implement a full multi-AZ highly available application architecture for this version of the project.
+The goal of this project was to keep the architecture simple and focused on demonstrating the CI/CD workflow rather than building out a full highly available network platform. Because of that, I intentionally did **not** implement a full multi-AZ highly available application architecture.
 
-For its scope, the project is **complete**: Terraform defines the full stack in this repository—from VPC, subnets, routing, and security groups through ECR, ECS, the ALB, CodePipeline, CodeBuild, the S3 artifact bucket for the pipeline, and the IAM needed for the pipeline and runtime.
+Terraform in this repository defines the full stack—from VPC, subnets, routing, and security groups through ECR, ECS, the ALB, CodePipeline, CodeBuild, the S3 artifact bucket for the pipeline, and the IAM needed for the pipeline and runtime. Copy `terraform/terraform.tfvars.example` to `terraform.tfvars`, set your CodeStar connection ARN and GitHub repository, then apply. Useful values (ALB URL, ECR URL, pipeline names, and more) are available as Terraform outputs after apply.
 
 ---
 
@@ -190,16 +190,16 @@ A more production-grade version of this project could include:
 
 ---
 
-## Future Improvements
+## Possible production extensions
 
-Some improvements I would make next:
+These are optional enhancements outside the narrow CI/CD demo scope:
 
-- add HTTPS with ACM
-- add a custom domain with Route 53
-- expand to a fuller highly available multi-AZ application design
-- add a staging environment
-- add test stages before deployment
-- add blue/green or canary deployment strategies
+- HTTPS with ACM
+- Custom domain with Route 53
+- Fuller highly available multi-AZ application design
+- Separate staging and production environments
+- Test stages before deployment
+- Blue/green or canary deployment strategies
 
 ---
 
@@ -211,6 +211,9 @@ Some improvements I would make next:
 ├── images/           # README screenshots
 ├── scripts/          # optional local helpers (e.g. terraform apply + push image to ECR)
 ├── terraform/        # full IaC: VPC, networking, security groups, ECR, ECS, ALB, CodePipeline, CodeBuild, IAM, S3 artifact bucket
+│   ├── terraform.tfvars.example   # sample variables (copy to terraform.tfvars; real values stay local)
+│   ├── outputs.tf                 # ALB URL, ECR URL, pipeline identifiers, etc.
+│   └── .terraform.lock.hcl        # provider version lock (committed for reproducible init)
 ├── Dockerfile
 ├── buildspec.yml     # CodeBuild: build/push to ECR, write imagedefinitions.json for the ECS deploy stage
 └── README.md
