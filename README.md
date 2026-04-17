@@ -1,220 +1,280 @@
 # AWS CI/CD Pipeline for Cloud Deployments
 
-This project demonstrates an end-to-end CI/CD pipeline on AWS for deploying a containerized web application to Amazon ECS using GitHub, AWS CodePipeline, AWS CodeBuild, Amazon ECR, and an Application Load Balancer.
+An end-to-end AWS pipeline that builds a containerized static site in CodeBuild, stores images in ECR, and rolls out new task definitions to ECS Fargate behind an Application Load Balancer whenever you push to GitHub—so the path from commit to live HTTP traffic is fully automated.
 
-The goal of this project was to keep the architecture simple and focused on demonstrating the CI/CD workflow rather than building out a full highly available network platform. Because of that, I intentionally did **not** implement a full multi-AZ highly available application architecture.
+![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![Amazon ECS](https://img.shields.io/badge/Amazon_ECS-FF9900?style=flat&logo=amazon-aws&logoColor=white)
+![AWS CodePipeline](https://img.shields.io/badge/AWS_CodePipeline-FF9900?style=flat&logo=amazon-aws&logoColor=white)
+![AWS CodeBuild](https://img.shields.io/badge/AWS_CodeBuild-FF9900?style=flat&logo=amazon-aws&logoColor=white)
+![Amazon ECR](https://img.shields.io/badge/Amazon_ECR-FF9900?style=flat&logo=amazon-aws&logoColor=white)
+![Application Load Balancer](https://img.shields.io/badge/Application_Load_Balancer-FF9900?style=flat&logo=amazon-aws&logoColor=white)
 
-Terraform in this repository defines the full stack—from VPC, subnets, routing, and security groups through ECR, ECS, the ALB, CodePipeline, CodeBuild, the S3 artifact bucket for the pipeline, and the IAM needed for the pipeline and runtime. Copy `terraform/terraform.tfvars.example` to `terraform.tfvars`, set your CodeStar connection ARN and GitHub repository, then apply. Useful values (ALB URL, ECR URL, pipeline names, and more) are available as Terraform outputs after apply.
-
----
-
-## Project Overview
-
-This pipeline automates the process of:
-
-1. Pulling source code from GitHub
-2. Building a Docker image with CodeBuild
-3. Pushing the image to Amazon ECR
-4. Deploying the updated container image to an ECS service
-5. Serving traffic through an Application Load Balancer
-
-This project helped me practice core cloud engineering concepts around:
-
-- CI/CD automation
-- containerized deployments
-- AWS managed build and deployment services
-- ECS service updates
-- image versioning with ECR
-- load balancer integration with ECS
+Section layout follows the portfolio README wireframe template: title and badges first, then architecture and how it works, key design decisions and AWS services, then prerequisites and deployment, screenshots, troubleshooting, learnings, and future work.
 
 ---
 
 ## Architecture
 
-**Workflow**
+**CI/CD control plane** — GitHub push → CodeStar Connections → CodePipeline (source, build, deploy) → S3 artifact bucket, CodeBuild → ECR and CloudWatch Logs, deploy stage → ECS Fargate; IAM roles for CodePipeline, CodeBuild, and ECS task execution are shown in the diagram.
 
-GitHub → CodePipeline → CodeBuild → Amazon ECR → Amazon ECS (Fargate) → Application Load Balancer
+![Cloud-CI-CD-Pipeline CI/CD control plane: CodePipeline stages, S3 artifacts, ECR, ECS, IAM, CloudWatch](images/cicd_control_plane.png)
 
-### Architecture notes
+The diagram centers on the pipeline and container rollout. The ASCII overview below adds **Application Load Balancer** and **VPC** context (public ALB subnets, private task subnet, NAT).
 
-- The application is deployed as a containerized service on **Amazon ECS** using **AWS Fargate** (no EC2 capacity to manage)
-- **CodePipeline** orchestrates the source, build, and deploy stages and stores stage artifacts in **Amazon S3**
-- Source code is supplied by **GitHub**, using a **CodeStar Connections** source action (you create and authorize the connection in the AWS console, then pass its ARN into Terraform)
-- **CodeBuild** builds the Docker image and pushes it to **Amazon ECR**
-- The pipeline’s deploy stage updates the ECS service with the new image from `imagedefinitions.json` produced by CodeBuild
-- Traffic is routed through an **Application Load Balancer** (HTTP listener on port 80)
-- The VPC uses two public subnets across two AZs for the ALB, but a **single private application subnet in one AZ** for ECS tasks and one NAT gateway—simpler than a full production-grade HA layout so the project stays focused on the CI/CD demonstration
+```
+GitHub (push to watched branch)
+        │
+        ▼
+CodeStar Connections (authorized link to GitHub)
+        │
+        ▼
+CodePipeline — Source stage (zip to S3 artifact bucket)
+        │
+        ▼
+CodePipeline — Build stage
+        │
+        ▼
+CodeBuild (docker build) ──▶ Amazon ECR (push image tags + latest)
+        │
+        │ imagedefinitions.json (artifact)
+        ▼
+CodePipeline — Deploy stage (ECS service force-new-deployment)
+        │
+        ▼
+Amazon ECS (Fargate tasks in private subnet)
+        │
+        ▼
+Application Load Balancer (HTTP :80) ──▶ internet
 
----
-
-## AWS Services Used
-
-- **Amazon VPC**
-- **Amazon ECS** (Fargate)
-- **Amazon ECR**
-- **AWS CodePipeline**
-- **AWS CodeBuild**
-- **Amazon S3** (pipeline artifacts)
-- **AWS CodeStar Connections** (GitHub source for CodePipeline)
-- **Elastic Load Balancing (ALB)**
-- **IAM**
-- **Amazon CloudWatch Logs** (CodeBuild and ECS task logs)
-
----
-
-## Key Features
-
-- GitHub-based source integration via CodeStar Connections
-- Automated build and deploy pipeline
-- Docker image storage in Amazon ECR
-- ECS service deployment automation
-- ALB-backed application routing
-- Health-checked target group integration
-- Clear separation between source, build, and deploy stages
+Supporting: VPC (public subnets for ALB, private subnet for tasks),
+NAT gateway (task egress), S3 (pipeline artifacts), IAM (pipeline/build/task roles),
+CloudWatch Logs (build + task logs).
+```
 
 ---
 
-## CI/CD Flow
+## How it works
 
-### 1. Source
-CodePipeline pulls source code changes from GitHub through a CodeStar Connections source action.
+1. **Trigger** — You push (or merge) to the GitHub branch configured in Terraform (`github_branch`, default `main`). Nothing runs until CodePipeline’s source stage sees new commits on that branch.
 
-### 2. Build
-CodeBuild builds the application container image and pushes it to Amazon ECR.
+2. **Source** — CodePipeline uses a **CodeStar Connections** source action to pull the repo. The connection must exist and be in an *Available* state in the AWS console before the pipeline can succeed. Stage output (source zip) lands in the **S3** artifact bucket.
 
-### 3. Deploy
-The pipeline deploys the updated image to the ECS service, which then serves traffic through the ALB.
+3. **Build** — **CodeBuild** runs `buildspec.yml`: logs into **ECR**, builds the `Dockerfile` (Nginx serving `website/`), tags the image with `CODEBUILD_RESOLVED_SOURCE_VERSION` and `latest`, pushes both to **ECR**, and writes `imagedefinitions.json` naming the ECS container `app` and the pushed image URI.
+
+4. **Deploy** — The deploy stage applies that artifact to the **ECS** service on **Fargate**. ECS pulls the new image from ECR, starts tasks in the private subnet, registers them with the **ALB** target group, and drains old tasks after health checks pass.
+
+5. **User-facing result** — The **Application Load Balancer** DNS name serves the static site over HTTP on port 80. After `terraform apply`, use the `application_url` output (see `terraform/outputs.tf`) as the bookmarkable entry point.
+
+---
+
+## Key design decisions
+
+### 1. Simpler network layout instead of full multi-AZ HA
+
+The VPC uses two public subnets (for the ALB) but a **single private application subnet and one NAT gateway** so the project stays centered on **CI/CD behavior**, not redundant NAT and subnet sprawl. A production system would spread tasks and NAT across AZs; here the tradeoff is cost and complexity versus demo clarity.
+
+### 2. GitHub via CodeStar Connections (not CodeCommit mirroring)
+
+**CodeStar Connections** keeps the pipeline’s source of truth on GitHub while using a first-class AWS integration, so Terraform can reference a connection ARN and repository id without maintaining a duplicate repo or webhook machinery.
+
+### 3. Fargate for the ECS service
+
+**Fargate** removes EC2 capacity and patching from the story: the interesting parts are pipeline → image → service update, not cluster Auto Scaling groups.
+
+### 4. ALB + target group health checks as the gate
+
+Traffic only shifts to new tasks after the **ALB** marks targets healthy. That ties deployment success to something observable (HTTP health) rather than only “task started.”
+
+### 5. One Terraform root for the full stack
+
+VPC, ECR, ECS, ALB, pipeline, artifact bucket, and IAM live in one apply so a reviewer can see the **entire** dependency graph in one place. The tradeoff is a larger state file than split workspaces; for a portfolio-sized footprint that was acceptable.
+
+---
+
+## AWS services used
+
+- **Amazon VPC** — Isolated network; public subnets for the ALB, private subnet for ECS tasks.
+- **NAT gateway** — Outbound internet for Fargate tasks (e.g. image pulls) from the private subnet.
+- **Amazon ECS** — Runs the service on **Fargate** with an ALB-attached service.
+- **Amazon ECR** — Stores images built and pushed by CodeBuild.
+- **AWS CodePipeline** — Orchestrates source, build, and deploy stages.
+- **AWS CodeBuild** — Builds and pushes the Docker image; produces `imagedefinitions.json` for ECS.
+- **Amazon S3** — Pipeline stage artifacts (source output, build output).
+- **AWS CodeStar Connections** — Authorized GitHub link for the CodePipeline source action.
+- **Elastic Load Balancing (ALB)** — HTTP listener and target group in front of the service.
+- **IAM** — Roles for CodeBuild, CodePipeline, ECS task execution, and task/runtime permissions.
+- **Amazon CloudWatch Logs** — CodeBuild logs and ECS task logs.
+
+---
+
+## Prerequisites
+
+### Required tools
+
+- **AWS CLI** v2.x — [Installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- **Terraform** >= 1.6.0 — [Installation guide](https://developer.hashicorp.com/terraform/downloads)
+- **Docker** (for local image experiments; CodeBuild runs Docker in AWS) — [Installation guide](https://docs.docker.com/get-docker/)
+
+### AWS account requirements
+
+- AWS credentials configured (`aws configure` or equivalent). This project is intended for **us-east-1** (see `buildspec.yml` and provider configuration in Terraform).
+- IAM permissions sufficient to create and update: VPC, ECS, ECR, CodePipeline, CodeBuild, S3, ALB, IAM roles/policies, CodeStar Connections–related pipeline resources, and CloudWatch Logs.
+
+### External requirements
+
+- A **CodeStar Connections** GitHub connection created and **completed** (status Available) in the AWS console (**Developer Tools → Settings → Connections**). Copy its ARN into `terraform.tfvars`.
+- A GitHub repository whose id (`owner/name`) matches `github_repository_id`.
+
+---
+
+## Setup and deployment
+
+### 1. Clone the repository
+
+```bash
+git clone <repo-url>
+cd Cloud-CI-CD-Pipeline
+```
+
+### 2. Configure variables
+
+```bash
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# Edit terraform/terraform.tfvars: codestar_connection_arn, github_repository_id, and optionally github_branch
+```
+
+### 3. Deploy infrastructure
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### 4. After apply
+
+- Note outputs such as `application_url`, `ecr_repository_url`, and `codepipeline_name` (see `terraform/outputs.tf`).
+- Trigger the pipeline by pushing to the watched branch, or start an execution in the CodePipeline console.
+
+**Console-only:** If the CodeStar connection is still pending, approve/link it in the AWS console before expecting the source stage to succeed.
+
+### Terraform variables
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `codestar_connection_arn` | ARN of the CodeStar Connections GitHub connection (must be Available). | Required |
+| `github_repository_id` | Repo as `owner/name` for the pipeline source. | Required |
+| `github_branch` | Branch the pipeline watches. | `main` |
 
 ---
 
 ## Screenshots
 
-### 1. VPC Resource Map
+### VPC resource map
 
-This project uses a simplified VPC layout to support the CI/CD demonstration.
+Shows the simplified layout (public subnets for the ALB, private side for workloads) used for this CI/CD demo.
 
 ![VPC Resource Map](images/vpc-resource-map.png)
 
----
+### Application Load Balancer
 
-### 2. Application Load Balancer
-
-The ALB serves as the entry point for application traffic and forwards requests to the ECS-backed target group.
+The ALB is the HTTP entry point and forwards to the ECS-backed target group.
 
 ![Application Load Balancer](images/alb-overview.png)
 
----
+### Target group health
 
-### 3. Target Group Health
-
-The target group shows the ECS task registered and healthy behind the ALB.
+Confirms the ECS task is registered and passing health checks.
 
 ![Target Group Health](images/target-group-health.png)
 
----
+### ECS cluster overview
 
-### 4. ECS Cluster Overview
-
-The ECS cluster hosts the deployed service and running task.
+Cluster hosting the service and running task.
 
 ![ECS Cluster Overview](images/ecs-cluster-overview.png)
 
----
+### ECS service overview
 
-### 5. ECS Service Overview
-
-The ECS service shows the active deployment, running task, and ALB target group integration.
+Active deployment, task, and ALB integration.
 
 ![ECS Service Overview](images/ecs-service-overview.png)
 
----
+### Amazon ECR repository
 
-### 6. Amazon ECR Repository
-
-The ECR repository stores the built container images generated by the pipeline.
+Images produced by CodeBuild after pipeline runs.
 
 ![Amazon ECR Repository](images/ecr-images.png)
 
----
+### CodePipeline execution
 
-### 7. CodePipeline Execution
-
-This is the full pipeline showing successful source, build, and deploy stages.
+Successful source, build, and deploy stages end-to-end.
 
 ![CodePipeline Execution](images/codepipeline-overview.png)
 
----
+### Live application
 
-### 8. Live Application
-
-After a successful deploy, the static site is served over HTTP at the ALB DNS name (see `Dockerfile`, which copies `website/` into the Nginx image).
+Static site served over HTTP at the ALB DNS name (`Dockerfile` copies `website/` into the Nginx image).
 
 ![Live Application](images/live-application.png)
 
 ---
 
-## What I Learned
+## Troubleshooting
 
-Through this project, I gained hands-on experience with:
+### CodePipeline source stage fails with connection / repository errors
 
-- setting up a GitHub-integrated AWS CI/CD pipeline
-- building and tagging Docker images in CodeBuild
-- pushing deployment artifacts to Amazon ECR
-- configuring ECS service deployments
-- integrating ECS with an ALB target group
-- validating deployments through health checks and service status
+**Root cause:** The CodeStar connection is not **Available**, or the `github_repository_id` / branch does not match the connected account/repo.
 
-I also learned how to troubleshoot issues related to:
+**Fix:** In the AWS console, open **Developer Tools → Settings → Connections**, finish authorization, then confirm `codestar_connection_arn` and `github_repository_id` in `terraform.tfvars` match that connection and repo. Re-run the pipeline.
 
-- source/provider selection in CodePipeline
-- ECS task and target group registration
-- ALB listener and forwarding configuration
-- build role vs ECS task execution role permissions
-- image deployment flow from ECR to ECS
+### ECS tasks run but targets stay unhealthy on the ALB
 
----
+**Root cause:** Often security group rules (ALB ↔ task port), wrong container port mapping, or the app not listening on the port the target group expects.
 
-## Why I Kept the Network Simple
+**Fix:** Verify the task definition container port matches the target group port; ensure the ALB security group can reach the task security group on that port; check **CloudWatch Logs** for the service task for startup errors.
 
-For this project, I intentionally **did not build a full highly available network architecture**. The main goal was to clearly demonstrate the **CI/CD pipeline and deployment workflow**, not to maximize infrastructure complexity.
+### CodeBuild fails on ECR login or docker push
 
-A more production-grade version of this project could include:
+**Root cause:** The CodeBuild service role may lack ECR permissions, or the repository URI/account in `buildspec.yml` does not match the account where the pipeline runs.
 
-- multiple private application subnets across multiple AZs
-- NAT in each AZ
-- stronger environment separation
-- HTTPS with ACM
-- Route 53 custom domain integration
-- staging and production pipelines
-- blue/green deployments
+**Fix:** Confirm IAM policies attached to the CodeBuild project role allow `ecr:GetAuthorizationToken` and push actions to the `portfolio-app` repository; confirm `aws sts get-caller-identity` in the build matches the account that owns the ECR repo.
 
 ---
 
-## Possible production extensions
+## What I learned
 
-These are optional enhancements outside the narrow CI/CD demo scope:
-
-- HTTPS with ACM
-- Custom domain with Route 53
-- Fuller highly available multi-AZ application design
-- Separate staging and production environments
-- Test stages before deployment
-- Blue/green or canary deployment strategies
+- How **CodePipeline** ties **CodeStar Connections**, **S3 artifacts**, **CodeBuild**, and **ECS** into one execution graph—and how a failed source connection blocks everything downstream with little surface area in Terraform alone.
+- The difference between **ECS task execution roles** (pull image, write logs) and **task roles** (what the app can call at runtime), and why mixing them up shows up as pull or AWS API failures rather than “build broke.”
+- Why **imagedefinitions.json** must align with the **container name** in the task definition (`app` in this project); a name mismatch produces a deploy stage that “succeeds” in the console but never rolls the image you built.
+- How **ALB target group health checks** behave as the real gate for traffic during rolling deployments, and how to trace failures from “unhealthy target” back to security groups or listen ports.
 
 ---
 
-## Repo Structure
+## Future improvements
+
+- HTTPS with **ACM** on the ALB and optional **Route 53** custom domain.
+- Multiple private application subnets and NAT per AZ for **true** multi-AZ resilience.
+- Separate **staging** and **production** pipelines or environments with promotion gates.
+- **Blue/green** or canary ECS deployments instead of rolling-only updates.
+- Extra pipeline stages (lint, tests, or IaC validation) before the build or deploy.
+
+---
+
+## Project structure
 
 ```text
 .
-├── website/          # static site (HTML/CSS) copied into the container image
-├── images/           # README screenshots
-├── scripts/          # optional local helpers (e.g. terraform apply + push image to ECR)
-├── terraform/        # full IaC: VPC, networking, security groups, ECR, ECS, ALB, CodePipeline, CodeBuild, IAM, S3 artifact bucket
-│   ├── terraform.tfvars.example   # sample variables (copy to terraform.tfvars; real values stay local)
-│   ├── outputs.tf                 # ALB URL, ECR URL, pipeline identifiers, etc.
-│   └── .terraform.lock.hcl        # provider version lock (committed for reproducible init)
-├── Dockerfile
-├── buildspec.yml     # CodeBuild: build/push to ECR, write imagedefinitions.json for the ECS deploy stage
+├── website/                       # Static HTML/CSS copied into the container image
+├── images/                        # README screenshots
+├── scripts/                       # Optional local helpers (e.g. Terraform + Docker/ECR)
+├── terraform/                     # Full IaC: VPC, networking, SGs, ECR, ECS, ALB, pipeline, CodeBuild, IAM, S3
+│   ├── terraform.tfvars.example   # Sample variables (copy to terraform.tfvars; keep secrets local)
+│   ├── outputs.tf                 # ALB URL, ECR URL, pipeline names, etc.
+│   └── .terraform.lock.hcl        # Provider lock for reproducible init
+├── Dockerfile                     # Nginx image bundling website/
+├── buildspec.yml                  # CodeBuild: build/push to ECR, emit imagedefinitions.json
 └── README.md
 ```
